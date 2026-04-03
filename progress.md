@@ -1,28 +1,75 @@
 # OOD Decision-Making Environment Progress Tracker
 
 ## Stage 0
+### Stage 0 Locked Decisions
+- Environment direction: a production-style operational risk triage environment for high-stakes decisions under uncertainty and distribution shift.
+- Base workflow: closest to fraud detection, with moderation-style ambiguity and anomaly-style distribution shift expressed through task variants.
+- Fixed action space: `accept`, `reject`, `review`.
+- Episode structure: multi-case decision queue, one case per step, deterministic task selection via `reset(...)`.
+- Task ladder: `easy`, `medium`, `hard`, all sharing the same action and observation interface.
+- Review semantics: `review` resolves the current case immediately, consumes limited review capacity, and incurs an explicit cost so it is useful on borderline cases but suboptimal on obvious ones.
+- Episode calibration target: `easy` uses 20 cases with review budget 4, `medium` uses 25 cases with review budget 4, and `hard` uses 30 cases with review budget 3.
+- Cost asymmetry: false accepts are materially more costly than false rejects because they allow harmful events to pass, while false rejects primarily degrade user experience or operational efficiency.
+
 ### 0.1 Product Scope Lock
-- [ ] Lock the environment name and one-sentence pitch around out-of-distribution decision-making for real-world AI operations.
-- [ ] Lock the action space to exactly `accept`, `reject`, and `review`.
-- [ ] Lock the primary decision workflow to match production-style triage rather than a toy classification loop.
-- [ ] Lock the business objective as maximizing correct decisions while minimizing costly mistakes and unnecessary reviews.
-- [ ] Lock the supported domains to fraud detection, anomaly detection, and moderation under one shared decision interface.
-- [ ] Lock the target user of the environment as an LLM-driven decision agent with optional human-review escalation.
+- [x] Lock the environment name and one-sentence pitch around out-of-distribution decision-making for real-world AI operations.
+- [x] Lock the action space to exactly `accept`, `reject`, and `review`.
+- [x] Lock the primary decision workflow to match production-style triage rather than a toy classification loop.
+- [x] Lock the business objective as maximizing correct decisions while minimizing costly mistakes and unnecessary reviews.
+- [x] Lock the supported domains to fraud detection, anomaly detection, and moderation under one shared decision interface.
+- [x] Lock the target user of the environment as an LLM-driven decision agent with optional human-review escalation.
 
 ### 0.2 Real-World Scenario Definition
-- [ ] Define how each case represents a realistic operational record instead of a synthetic single-field prompt.
-- [ ] Define which fields are visible to the agent for every case.
-- [ ] Define which fields remain hidden and are used only for grading.
-- [ ] Define how uncertainty, ambiguity, and missing signals appear in observations.
-- [ ] Define how review capacity is limited or penalized so `review` remains meaningful.
-- [ ] Define why false accepts and false rejects have asymmetric business cost.
+
+- Locked case representation: each step is one operational triage record from a fixed queue, grounded in a fraud-like approval pipeline with `payment`, `content`, or `system` domain context. Each record represents a real event with actor history, event context, automated model outputs, rule flags, evidence quality signals, and a short analyst-style evidence summary.
+- Locked visible observation fields:
+  - Identity and context: `case_id`, `task_name`, `domain_hint`, `event_type`
+  - Structured risk signals: `impact_score`, `risk_score`, `anomaly_score`, `history_risk_score`
+  - Model outputs: `model_recommendation`, `model_confidence`
+  - Uncertainty and OOD hints: `uncertainty_score`, `novelty_score`
+  - Evidence quality: `feature_completeness`, `policy_flags`, `missing_fields`
+  - Free-text evidence: `evidence_text`
+  - Queue state: `queue_position`, `remaining_cases`, `remaining_review_budget`
+- Locked hidden grading fields:
+  - Ground truth: `true_case_class`, `optimal_decision`
+  - Shift metadata: `is_ood`, `ood_type`
+  - Business costs: `cost_tier`, `false_accept_cost`, `false_reject_cost`, `review_cost`
+  - Deterministic action values: `action_value_accept`, `action_value_reject`, `action_value_review`
+- Locked uncertainty and ambiguity rules:
+  - Low confidence appears through lower `model_confidence` and higher `uncertainty_score`
+  - Misleading high confidence is allowed on OOD cases, especially in `hard`
+  - Missing or noisy evidence appears through `feature_completeness` and `missing_fields`
+  - Explicit OOD hints appear through `novelty_score` and certain policy flags
+  - Implicit OOD appears as disagreement between scores, recommendation, flags, and `evidence_text`
+- Locked task-specific uncertainty profile:
+  - `easy`: mostly in-distribution payment-style cases, aligned signals, high completeness, low novelty
+  - `medium`: mixed payment/content cases, moderate missingness, moderate shift, more signal conflict
+  - `hard`: payment/content/system cases with stronger OOD behavior, misleading confidence, more missing critical fields, and adversarial signal conflict
+- Locked business-value matrix:
+  - Legitimate case: correct `accept` is positive, `reject` incurs false-reject cost, `review` incurs review cost
+  - Harmful case: correct `reject` is positive, `accept` incurs false-accept cost, `review` incurs review cost
+  - Ambiguous case: `review` is the optimal action, while direct actions incur deterministic penalties
+- Locked cost tiers:
+  - `standard`: false accept `10`, false reject `4`, review `1`
+  - `sensitive`: false accept `14`, false reject `5`, review `1`
+  - `critical`: false accept `18`, false reject `6`, review `2`
+- Locked positive action values:
+  - Correct `accept`: `+3`
+  - Correct `reject`: `+4`
+  - Correct `review`: `+2`
+- [x] Define how each case represents a realistic operational record instead of a synthetic single-field prompt.
+- [x] Define which fields are visible to the agent for every case.
+- [x] Define which fields remain hidden and are used only for grading.
+- [x] Define how uncertainty, ambiguity, and missing signals appear in observations.
+- [x] Define how review capacity is limited or penalized so `review` remains meaningful.
+- [x] Define why false accepts and false rejects have asymmetric business cost.
 
 ### 0.3 Success Criteria Lock
-- [ ] Freeze the requirement for at least three tasks labeled easy, medium, and hard.
-- [ ] Freeze the requirement that every task must be solvable through the same typed action interface.
-- [ ] Freeze the requirement that grading is deterministic and normalized to the range `0.0` to `1.0`.
-- [ ] Freeze the requirement that rewards are meaningful at each step and not purely terminal.
-- [ ] Freeze the requirement that the final implementation must pass `openenv` validation.
+- [x] Freeze the requirement for at least three tasks labeled easy, medium, and hard.
+- [x] Freeze the requirement that every task must be solvable through the same typed action interface.
+- [x] Freeze the requirement that grading is deterministic and normalized to the range `0.0` to `1.0`.
+- [x] Freeze the requirement that rewards are meaningful at each step and not purely terminal.
+- [x] Freeze the requirement that the final implementation must pass `openenv` validation.
 
 ## Stage 1
 ### 1.1 Repo Conversion Plan
