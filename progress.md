@@ -93,10 +93,10 @@
 - [x] Define the easy task with strong in-distribution signals and low ambiguity.
 - [x] Define the medium task with moderate distribution shift, missing fields, and mixed evidence.
 - [x] Define the hard task with strong OOD behavior, adversarial or conflicting features, and higher review pressure.
-- [ ] Ensure all three tasks use the same action schema and grading API.
+- [x] Ensure all three tasks use the same action schema and grading API.
 - [x] Ensure all three tasks feel like operational decision queues rather than unrelated mini-games.
 - [x] Ensure each task has a clear narrative grounded in fraud, anomaly, or moderation workflows.
-- [ ] Verify OpenEnv can enumerate and run all tasks programmatically
+- [x] Verify OpenEnv can enumerate and run all tasks programmatically
 
 ### 2.2 Case Schema Design
 - [x] Define the full case record structure for account, transaction, content, or event-level evidence.
@@ -141,25 +141,25 @@
 ## Stage 4
 ### 4.1 Deterministic Task Bank
 - [x] Create a deterministic task bank for easy, medium, and hard episodes.
-- [ ] Assign a fixed seed strategy so the same task definition always produces the same cases.
-- [ ] Create realistic feature distributions for each domain scenario.
+- [x] Assign a fixed seed strategy so the same task definition always produces the same cases.
+- [x] Create realistic feature distributions for each domain scenario.
 - [x] Create explicit OOD shift patterns for medium and hard tasks.
 - [x] Create adversarial or borderline examples that make `review` strategically necessary.
-- [ ] Create enough case diversity to prevent trivial one-rule policies from winning.
+- [x] Create enough case diversity to prevent trivial one-rule policies from winning.
 
 ### 4.2 Data Quality Controls
-- [ ] Verify every case has a single authoritative hidden label.
-- [ ] Verify every case has a business cost profile for false accept, false reject, and review actions.
-- [ ] Verify every case has enough visible evidence for an agent to justify its choice.
-- [ ] Verify no case contains contradictory grading targets.
-- [ ] Verify no task accidentally leaks hidden labels through visible fields.
+- [x] Verify every case has a single authoritative hidden label.
+- [x] Verify every case has a business cost profile for false accept, false reject, and review actions.
+- [x] Verify every case has enough visible evidence for an agent to justify its choice.
+- [x] Verify no case contains contradictory grading targets.
+- [x] Verify no task accidentally leaks hidden labels through visible fields.
 - [ ] Verify task definitions are deterministic across local runs and container runs.
 
 ### 4.3 Difficulty Calibration
-- [ ] Calibrate the easy task so a simple baseline can achieve a non-trivial but imperfect score.
-- [ ] Calibrate the medium task so robust reasoning and review usage clearly outperform naive thresholds.
-- [ ] Calibrate the hard task so OOD awareness matters and overconfident accept/reject behavior is punished.
-- [ ] Verify task difficulty increases in a visible and defensible way from easy to hard.
+- [x] Calibrate the easy task so a simple baseline can achieve a non-trivial but imperfect score.
+- [x] Calibrate the medium task so robust reasoning and review usage clearly outperform naive thresholds.
+- [x] Calibrate the hard task so OOD awareness matters and overconfident accept/reject behavior is punished.
+- [x] Verify task difficulty increases in a visible and defensible way from easy to hard.
 - [ ] Verify the hard task is still tractable within hackathon runtime limits.
 
 ## Stage 5
@@ -207,9 +207,9 @@
 - [ ] Define how aggregate score is computed across easy, medium, and hard tasks.
 
 ### 6.3 Anti-Shortcut Checks
-- [ ] Verify an always-accept policy scores poorly on at least one task.
-- [ ] Verify an always-reject policy scores poorly on at least one task.
-- [ ] Verify an always-review policy scores poorly due to explicit review cost or budget pressure.
+- [x] Verify an always-accept policy scores poorly on at least one task.
+- [x] Verify an always-reject policy scores poorly on at least one task.
+- [x] Verify an always-review policy scores poorly due to explicit review cost or budget pressure.
 - [ ] Verify the optimal policy requires reading task evidence and reacting to OOD signals.
 
 ## Stage 7
@@ -347,10 +347,10 @@
 - [x] Confirm `inference.py` produces valid `accept`, `reject`, or `review` actions only.
 
 ## Special Section: Grading Correctness
-- [ ] Confirm graders are deterministic.
+- [x] Confirm graders are deterministic.
 - [ ] Confirm graders return values in the range `0.0` to `1.0`.
-- [ ] Confirm graders treat easy, medium, and hard tasks consistently.
-- [ ] Confirm graders penalize false accepts, false rejects, and unnecessary reviews appropriately.
+- [x] Confirm graders treat easy, medium, and hard tasks consistently.
+- [x] Confirm graders penalize false accepts, false rejects, and unnecessary reviews appropriately.
 - [ ] Confirm graders reward correct high-confidence decisions and justified reviews appropriately.
 - [ ] Confirm shaped rewards shown during interaction do not contradict final grading.
 - [ ] Confirm golden tests lock expected scores for representative episodes.
