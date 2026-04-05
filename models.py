@@ -166,6 +166,24 @@ class TriageObservation(Observation):
         default=0.0,
         description="Running sum of step rewards for the active episode.",
     )
+    normalized_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Running normalized score for processed cases, if available.",
+    )
+    raw_score_min: float = Field(
+        default=0.0,
+        description="Deterministic lower bound for the full-episode raw score.",
+    )
+    raw_score_max: float = Field(
+        default=0.0,
+        description="Deterministic upper bound for the full-episode raw score.",
+    )
+    raw_score_optimal: float = Field(
+        default=0.0,
+        description="Deterministic raw score achieved by the hidden optimal policy.",
+    )
     accepted_count: int = Field(
         default=0,
         ge=0,
@@ -188,6 +206,10 @@ class TriageObservation(Observation):
     last_feedback: str | None = Field(
         default=None,
         description="Deterministic feedback about the most recent decision.",
+    )
+    last_outcome_category: str | None = Field(
+        default=None,
+        description="Deterministic score-category label for the most recent action.",
     )
 
 
@@ -231,6 +253,24 @@ class TriageState(State):
         default=0.0,
         description="Running sum of rewards across the episode.",
     )
+    normalized_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Running normalized score for processed cases, if available.",
+    )
+    raw_score_min: float = Field(
+        default=0.0,
+        description="Deterministic lower bound for the full-episode raw score.",
+    )
+    raw_score_max: float = Field(
+        default=0.0,
+        description="Deterministic upper bound for the full-episode raw score.",
+    )
+    raw_score_optimal: float = Field(
+        default=0.0,
+        description="Deterministic raw score achieved by the hidden optimal policy.",
+    )
     accepted_count: int = Field(
         default=0,
         ge=0,
@@ -249,6 +289,10 @@ class TriageState(State):
     last_decision: Decision | None = Field(
         default=None,
         description="Most recent decision applied by the environment.",
+    )
+    last_outcome_category: str | None = Field(
+        default=None,
+        description="Deterministic score-category label for the most recent action.",
     )
 
 

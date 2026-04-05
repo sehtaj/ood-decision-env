@@ -23,15 +23,15 @@ The workflow is grounded in a fraud-like approval pipeline, with moderation-styl
 
 ## Current Stage
 
-Stage 1 converts the starter template into a production-shaped environment scaffold:
+The core environment, deterministic task bank, and deterministic grader are now in place:
 
 - typed decision and observation models
 - deterministic multi-case queue handling
 - explicit task selection via `reset(task="easy" | "medium" | "hard")`
 - fixed review budgets per task
+- task-bank calibration against naive shortcut policies
+- deterministic raw business-value grading with normalized episode scores
 - baseline `inference.py` entrypoint using the OpenAI client
-
-Task-bank calibration, richer grading analysis, and benchmark hardening continue in later stages.
 
 ## Quick Start
 
@@ -89,7 +89,7 @@ OPENAI_API_KEY=your_api_key \
 
 - the current visible case record
 - queue progress and remaining review budget
-- cumulative reward and action counts
+- cumulative raw reward, normalized score, and action counts
 - deterministic feedback for the previous action
 
 The visible case includes:
@@ -109,6 +109,32 @@ The visible case includes:
 
 All tasks share the same API and differ only in ambiguity, missing evidence, and OOD behavior.
 
+## Scoring
+
+The environment uses two related score views:
+
+- `reward` and `cumulative_reward` are raw business-value signals used during the episode
+- `normalized_score` is the public evaluation score clipped into `[0.0, 1.0]`
+
+Normalization is deterministic:
+
+```text
+normalized_score = clip(raw_score / raw_score_optimal, 0.0, 1.0)
+```
+
+Where:
+
+- `raw_score` is the total business value earned by the agent
+- `raw_score_optimal` is the deterministic hidden-policy optimum for that task
+
+This means:
+
+- positive but suboptimal play earns partial credit
+- net-negative business value earns `0.0`
+- the best possible task episode earns `1.0`
+
+Aggregate evaluation across `easy`, `medium`, and `hard` is the arithmetic mean of the three normalized task scores.
+
 ## Project Structure
 
 ```text
@@ -118,11 +144,14 @@ my_env/
 ├── inference.py
 ├── models.py
 ├── openenv.yaml
-├── progress.md
+├── PROGRESS.md
 ├── pyproject.toml
 ├── README.md
+├── tests/
+│   └── test_grader.py
 └── server/
     ├── app.py
+    ├── grader.py
     ├── my_env_environment.py
     ├── task_bank.py
     └── Dockerfile

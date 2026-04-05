@@ -134,8 +134,8 @@
 ### 3.3 Schema Stability
 - [x] Ensure the action schema remains stable across easy, medium, and hard tasks.
 - [x] Ensure the observation schema remains stable across all tasks and steps.
-- [ ] Ensure all metadata keys are deterministic and documented.
-- [ ] Ensure the schema supports OpenEnv serialization without custom hacks.
+- [x] Ensure all metadata keys are deterministic and documented.
+- [x] Ensure the schema supports OpenEnv serialization without custom hacks.
 - [ ] Ensure the schema remains lightweight enough for sub-20-minute evaluation runs.
 
 ## Stage 4
@@ -197,14 +197,14 @@
 - [x] Define per-step penalties for costly false rejects.
 - [x] Define per-step penalties for wasteful review usage.
 - [x] Ensure the reward function is dense enough to guide agent behavior during the full episode.
-- [ ] Ensure the reward function aligns with the final grader rather than rewarding contradictory behavior.
+- [x] Ensure the reward function aligns with the final grader rather than rewarding contradictory behavior.
 
 ### 6.2 Score Normalization
-- [ ] Define the deterministic mapping from raw business value to normalized score.
-- [ ] Ensure every episode score is clipped or normalized into `0.0` to `1.0`.
-- [ ] Ensure impossible edge cases cannot produce scores below `0.0` or above `1.0`.
-- [ ] Define whether the public reward shown during steps matches the final normalized score or a shaped intermediate value.
-- [ ] Define how aggregate score is computed across easy, medium, and hard tasks.
+- [x] Define the deterministic mapping from raw business value to normalized score.
+- [x] Ensure every episode score is clipped or normalized into `0.0` to `1.0`.
+- [x] Ensure impossible edge cases cannot produce scores below `0.0` or above `1.0`.
+- [x] Define whether the public reward shown during steps matches the final normalized score or a shaped intermediate value.
+- [x] Define how aggregate score is computed across easy, medium, and hard tasks.
 
 ### 6.3 Anti-Shortcut Checks
 - [x] Verify an always-accept policy scores poorly on at least one task.
@@ -214,24 +214,24 @@
 
 ## Stage 7
 ### 7.1 Deterministic Grader Implementation
-- [ ] Implement a deterministic grading path that uses only hidden task data and recorded actions.
-- [ ] Ensure the grader has no dependence on model outputs other than the chosen action and allowed auxiliary fields.
-- [ ] Ensure grading produces the same result across repeated runs.
-- [ ] Ensure grading works for each step and for the final episode summary.
-- [ ] Ensure grading handles invalid actions with a deterministic penalty path.
+- [x] Implement a deterministic grading path that uses only hidden task data and recorded actions.
+- [x] Ensure the grader has no dependence on model outputs other than the chosen action and allowed auxiliary fields.
+- [x] Ensure grading produces the same result across repeated runs.
+- [x] Ensure grading works for each step and for the final episode summary.
+- [x] Ensure grading handles invalid actions with a deterministic penalty path.
 
 ### 7.2 Grader Test Coverage
-- [ ] Add tests for correct scoring of `accept` on positive and negative cases.
-- [ ] Add tests for correct scoring of `reject` on positive and negative cases.
-- [ ] Add tests for correct scoring of `review` on borderline and obvious cases.
-- [ ] Add tests for review budget exhaustion behavior if a budget exists.
-- [ ] Add tests for normalization boundaries at `0.0` and `1.0`.
-- [ ] Add golden tests for one fully worked easy episode, one medium episode, and one hard episode.
+- [x] Add tests for correct scoring of `accept` on positive and negative cases.
+- [x] Add tests for correct scoring of `reject` on positive and negative cases.
+- [x] Add tests for correct scoring of `review` on borderline and obvious cases.
+- [x] Add tests for review budget exhaustion behavior if a budget exists.
+- [x] Add tests for normalization boundaries at `0.0` and `1.0`.
+- [x] Add golden tests for one fully worked easy episode, one medium episode, and one hard episode.
 
 ### 7.3 Grader Transparency
-- [ ] Define deterministic metadata fields that explain score components without leaking future labels.
-- [ ] Ensure observation metadata is useful for debugging but does not reveal hidden truth before the action.
-- [ ] Ensure final evaluation outputs are traceable to business-cost components.
+- [x] Define deterministic metadata fields that explain score components without leaking future labels.
+- [x] Ensure observation metadata is useful for debugging but does not reveal hidden truth before the action.
+- [x] Ensure final evaluation outputs are traceable to business-cost components.
 
 ## Stage 8
 ### 8.1 OpenEnv Client Compatibility
@@ -348,10 +348,10 @@
 
 ## Special Section: Grading Correctness
 - [x] Confirm graders are deterministic.
-- [ ] Confirm graders return values in the range `0.0` to `1.0`.
+- [x] Confirm graders return values in the range `0.0` to `1.0`.
 - [x] Confirm graders treat easy, medium, and hard tasks consistently.
 - [x] Confirm graders penalize false accepts, false rejects, and unnecessary reviews appropriately.
-- [ ] Confirm graders reward correct high-confidence decisions and justified reviews appropriately.
+- [x] Confirm graders reward correct high-confidence decisions and justified reviews appropriately.
 - [ ] Confirm shaped rewards shown during interaction do not contradict final grading.
 - [ ] Confirm golden tests lock expected scores for representative episodes.
 
@@ -369,7 +369,7 @@
 - [ ] The environment represents a real-world OOD decision system rather than a toy example.
 - [ ] The only decision actions are `accept`, `reject`, and `review`.
 - [ ] Reward is meaningful and non-sparse across the episode.
-- [ ] Grading is deterministic and normalized to `0.0` to `1.0`.
+- [x] Grading is deterministic and normalized to `0.0` to `1.0`.
 - [ ] Typed models are complete and OpenEnv-compliant.
 - [ ] `reset()`, `step()`, and `state` all behave correctly.
 - [ ] `inference.py` exists and meets all naming and environment-variable requirements.
