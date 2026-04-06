@@ -14,6 +14,7 @@ from typing import Iterable
 
 from openai import OpenAI
 
+
 try:
     from client import RiskTriageEnv
     from models import Decision, TaskName, TriageAction, TriageObservation
@@ -22,14 +23,26 @@ except ImportError as exc:  # pragma: no cover
 
 
 ENV_NAME = "operational_risk_triage"
-HIGH_RISK_FLAGS = {
-    "velocity_spike",
-    "credential_reset",
-    "gift_card_cluster",
+SEVERE_RISK_FLAGS = {
+    "account_linkage",
     "checkout_fanout",
+    "coordination_signal",
+    "credential_reset",
+    "credential_stuffing",
+    "gift_card_cluster",
     "identity_fragmentation",
     "linked_chargeback_cluster",
+    "merchant_cluster",
+    "promo_velocity",
+    "refund_velocity",
+    "velocity_spike",
 }
+VALID_DECISIONS = {"accept", "reject", "review"}
+SYSTEM_PROMPT = (
+    "You are an operational risk triage agent. You must decide whether to accept, "
+    "reject, or review a case. Only output one word: accept, reject, or review."
+)
+LLM_TIMEOUT_S = 5.0
 
 
 def _bool_text(value: bool) -> str:
@@ -55,23 +68,71 @@ def _format_rewards(values: Iterable[float]) -> str:
     return ",".join(_format_reward(value) for value in values)
 
 
-def _decision_for_observation(observation: TriageObservation) -> Decision:
+def _llm_enabled(api_base_url: str | None) -> bool:
+    if api_base_url:
+        return True
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if api_key and api_key != "dummy":
+        return True
+    return False
+
+
+def _heuristic_decision(observation: TriageObservation) -> Decision:
     case = observation.current_case
     if case is None:
         return "review"
 
+    policy_flags = set(case.policy_flags)
+    has_severe_flag = bool(policy_flags & SEVERE_RISK_FLAGS)
+
     if (
-        case.risk_score >= 0.79
-        or case.anomaly_score >= 0.82
-        or any(flag in HIGH_RISK_FLAGS for flag in case.policy_flags)
+        observation.remaining_review_budget > 0
+        and case.uncertainty_score >= 0.86
+        and case.feature_completeness <= 0.70
+    ):
+        return "review"
+    if (
+        observation.remaining_review_budget > 0
+        and case.uncertainty_score >= 0.78
+        and 0.22 <= case.history_risk_score <= 0.45
+        and case.feature_completeness <= 0.78
+        and case.novelty_score >= 0.48
+        and case.risk_score <= 0.68
+        and "new_beneficiary" in policy_flags
+    ):
+        return "review"
+    if case.history_risk_score >= 0.60 and case.risk_score >= 0.70:
+        return "reject"
+    if case.anomaly_score >= 0.90 and case.history_risk_score >= 0.34 and has_severe_flag:
+        return "reject"
+    if case.anomaly_score >= 0.80 and case.history_risk_score >= 0.52 and has_severe_flag:
+        return "reject"
+    if (
+        case.risk_score >= 0.65
+        and case.anomaly_score >= 0.68
+        and case.history_risk_score >= 0.40
     ):
         return "reject"
+    if (
+        case.history_risk_score <= 0.28
+        and case.risk_score <= 0.72
+        and case.anomaly_score <= 0.98
+        and not has_severe_flag
+    ):
+        return "accept"
+    if (
+        case.history_risk_score <= 0.24
+        and case.anomaly_score <= 0.80
+        and case.feature_completeness >= 0.76
+    ):
+        return "accept"
     if case.model_recommendation == "review" and observation.remaining_review_budget > 0:
         return "review"
     if (
         observation.remaining_review_budget > 0
-        and case.uncertainty_score >= 0.66
-        and case.novelty_score >= 0.24
+        and case.uncertainty_score >= 0.76
+        and case.feature_completeness <= 0.80
+        and case.history_risk_score < 0.50
     ):
         return "review"
     if (
@@ -85,6 +146,66 @@ def _decision_for_observation(observation: TriageObservation) -> Decision:
     return case.model_recommendation
 
 
+def get_llm_decision(client: OpenAI, observation: TriageObservation) -> str:
+    case = observation.current_case
+    if case is None:
+        return "review"
+
+    user_prompt = "\n".join(
+        [
+            f"risk_score: {case.risk_score}",
+            f"anomaly_score: {case.anomaly_score}",
+            f"history_risk_score: {case.history_risk_score}",
+            f"model_recommendation: {case.model_recommendation}",
+            f"model_confidence: {case.model_confidence}",
+            f"uncertainty_score: {case.uncertainty_score}",
+            f"novelty_score: {case.novelty_score}",
+            f"feature_completeness: {case.feature_completeness}",
+            f"policy_flags: {','.join(case.policy_flags)}",
+            f"missing_fields: {','.join(case.missing_fields)}",
+            f"evidence_text: {case.evidence_text}",
+        ]
+    )
+    response = client.chat.completions.create(
+        model=os.environ.get("MODEL_NAME", "gpt-4.1-mini"),
+        temperature=0.0,
+        max_tokens=1,
+        timeout=LLM_TIMEOUT_S,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_prompt},
+        ],
+    )
+    content = (response.choices[0].message.content or "").strip().lower()
+    return content if content in VALID_DECISIONS else "review"
+
+
+def _decision_for_observation(
+    model_client: OpenAI,
+    observation: TriageObservation,
+    llm_enabled: bool,
+) -> Decision:
+    case = observation.current_case
+    if case is None:
+        return "review"
+
+    if llm_enabled and (
+        case.uncertainty_score > 0.60
+        or case.novelty_score > 0.60
+        or (
+            case.feature_completeness < 0.75
+            and case.model_confidence < 0.75
+        )
+    ):
+        try:
+            llm_decision = get_llm_decision(model_client, observation)
+        except Exception:
+            return _heuristic_decision(observation)
+        return llm_decision if llm_decision in VALID_DECISIONS else "review"
+
+    return _heuristic_decision(observation)
+
+
 def run_episode(
     env_url: str,
     task: TaskName,
@@ -94,6 +215,7 @@ def run_episode(
 ) -> int:
     api_key = os.environ.get("OPENAI_API_KEY") or hf_token or "dummy"
     _model_client = OpenAI(base_url=api_base_url, api_key=api_key)
+    llm_enabled = _llm_enabled(api_base_url)
 
     rewards: list[float] = []
     steps = 0
@@ -107,7 +229,11 @@ def run_episode(
             result = env.reset(task=task)
 
             while not result.done:
-                action = _decision_for_observation(result.observation)
+                action = _decision_for_observation(
+                    _model_client,
+                    result.observation,
+                    llm_enabled,
+                )
                 error_value = "null"
                 reward_value = 0.0
                 try:
