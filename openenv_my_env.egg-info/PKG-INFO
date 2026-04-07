@@ -1,9 +1,12 @@
 Metadata-Version: 2.4
 Name: openenv-my_env
 Version: 0.1.0
-Summary: My Env environment for OpenEnv
+Summary: Operational risk triage environment for OpenEnv
 Requires-Python: >=3.10
+License-File: LICENSE
 Requires-Dist: openenv-core[core]>=0.2.1
+Requires-Dist: openai>=2.0.0
 Provides-Extra: dev
 Requires-Dist: pytest>=8.0.0; extra == "dev"
 Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Dynamic: license-file
