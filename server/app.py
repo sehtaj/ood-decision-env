@@ -30,6 +30,15 @@ app = create_app(
     env_name="operational_risk_triage",
     max_concurrent_envs=4,
 )
+
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
 def main() -> None:
     """Run the OpenEnv-compatible FastAPI server locally."""
 
