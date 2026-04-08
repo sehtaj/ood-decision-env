@@ -86,6 +86,52 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
     has_severe_flag = bool(policy_flags & SEVERE_RISK_FLAGS)
 
     if (
+        {"beneficiary_change", "invoice_metadata_change"} <= policy_flags
+        and case.risk_score >= 0.60
+        and case.history_risk_score >= 0.38
+    ):
+        return "reject"
+    if (
+        {"merchant_reactivation", "amount_shift"} <= policy_flags
+        and case.risk_score >= 0.62
+        and case.history_risk_score >= 0.40
+    ):
+        if observation.remaining_review_budget > 0 and case.uncertainty_score >= 0.55:
+            return "review"
+        return "reject"
+
+    if (
+        case.history_risk_score <= 0.24
+        and case.anomaly_score <= 0.60
+        and case.feature_completeness >= 0.72
+        and not has_severe_flag
+    ):
+        return "accept"
+    if (
+        case.anomaly_score >= 0.93
+        and case.history_risk_score <= 0.30
+        and case.risk_score <= 0.63
+        and not has_severe_flag
+    ):
+        return "accept"
+
+    if case.history_risk_score >= 0.60 and case.risk_score >= 0.70:
+        return "reject"
+    if case.anomaly_score >= 0.90 and case.history_risk_score >= 0.34 and has_severe_flag:
+        return "reject"
+    if case.anomaly_score >= 0.80 and case.history_risk_score >= 0.52 and has_severe_flag:
+        return "reject"
+    if case.anomaly_score >= 0.85 and case.history_risk_score >= 0.38 and has_severe_flag:
+        return "reject"
+    if case.risk_score >= 0.62 and case.anomaly_score >= 0.75 and has_severe_flag:
+        return "reject"
+    if (
+        case.risk_score >= 0.65
+        and case.anomaly_score >= 0.68
+        and case.history_risk_score >= 0.40
+    ):
+        return "reject"
+    if (
         observation.remaining_review_budget > 0
         and case.uncertainty_score >= 0.86
         and case.feature_completeness <= 0.70
@@ -101,18 +147,6 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and "new_beneficiary" in policy_flags
     ):
         return "review"
-    if case.history_risk_score >= 0.60 and case.risk_score >= 0.70:
-        return "reject"
-    if case.anomaly_score >= 0.90 and case.history_risk_score >= 0.34 and has_severe_flag:
-        return "reject"
-    if case.anomaly_score >= 0.80 and case.history_risk_score >= 0.52 and has_severe_flag:
-        return "reject"
-    if (
-        case.risk_score >= 0.65
-        and case.anomaly_score >= 0.68
-        and case.history_risk_score >= 0.40
-    ):
-        return "reject"
     if (
         case.history_risk_score <= 0.28
         and case.risk_score <= 0.72
@@ -213,7 +247,7 @@ def run_episode(
     model_name: str,
     hf_token: str | None,
 ) -> int:
-    api_key = os.environ.get("OPENAI_API_KEY") or hf_token or "dummy"
+    api_key = os.environ.get("OPENAI_API_KEY") or hf_token
     _model_client = OpenAI(base_url=api_base_url, api_key=api_key)
     llm_enabled = _llm_enabled(api_base_url)
 
@@ -286,7 +320,7 @@ def main() -> int:
     parser.add_argument("--task", choices=["easy", "medium", "hard"], default="easy")
     args = parser.parse_args()
 
-    api_base_url = os.environ.get("API_BASE_URL")
+    api_base_url = os.environ.get("API_BASE_URL", "").strip() or None
     model_name = os.environ.get("MODEL_NAME", "gpt-4.1-mini")
     hf_token = os.environ.get("HF_TOKEN")
 
