@@ -247,7 +247,7 @@ def run_episode(
     model_name: str,
     hf_token: str | None,
 ) -> int:
-    api_key = os.environ.get("OPENAI_API_KEY") or hf_token
+    api_key = os.environ.get("OPENAI_API_KEY") or hf_token or "dummy"
     _model_client = OpenAI(base_url=api_base_url, api_key=api_key)
     llm_enabled = _llm_enabled(api_base_url)
 
