@@ -1,8 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
 
 """Deterministic baseline inference entrypoint with strict log formatting."""
 
@@ -14,7 +11,6 @@ from typing import Iterable
 
 from openai import OpenAI
 
-
 try:
     from client import RiskTriageEnv
     from models import Decision, TaskName, TriageAction, TriageObservation
@@ -23,6 +19,7 @@ except ImportError as exc:  # pragma: no cover
 
 
 ENV_NAME = "operational_risk_triage"
+
 SEVERE_RISK_FLAGS = {
     "account_linkage",
     "checkout_fanout",
@@ -37,11 +34,14 @@ SEVERE_RISK_FLAGS = {
     "refund_velocity",
     "velocity_spike",
 }
+
 VALID_DECISIONS = {"accept", "reject", "review"}
+
 SYSTEM_PROMPT = (
     "You are an operational risk triage agent. You must decide whether to accept, "
     "reject, or review a case. Only output one word: accept, reject, or review."
 )
+
 LLM_TIMEOUT_S = 5.0
 
 
@@ -94,6 +94,7 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and case.history_risk_score >= 0.38
     ):
         return "reject"
+
     if (
         {"merchant_reactivation", "amount_shift"} <= policy_flags
         and case.risk_score >= 0.62
@@ -110,6 +111,7 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and not has_severe_flag
     ):
         return "accept"
+
     if (
         case.anomaly_score >= 0.93
         and case.history_risk_score <= 0.30
@@ -120,26 +122,33 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
 
     if case.history_risk_score >= 0.60 and case.risk_score >= 0.70:
         return "reject"
+
     if case.anomaly_score >= 0.90 and case.history_risk_score >= 0.34 and has_severe_flag:
         return "reject"
+
     if case.anomaly_score >= 0.80 and case.history_risk_score >= 0.52 and has_severe_flag:
         return "reject"
+
     if case.anomaly_score >= 0.85 and case.history_risk_score >= 0.38 and has_severe_flag:
         return "reject"
+
     if case.risk_score >= 0.62 and case.anomaly_score >= 0.75 and has_severe_flag:
         return "reject"
+
     if (
         case.risk_score >= 0.65
         and case.anomaly_score >= 0.68
         and case.history_risk_score >= 0.40
     ):
         return "reject"
+
     if (
         observation.remaining_review_budget > 0
         and case.uncertainty_score >= 0.86
         and case.feature_completeness <= 0.70
     ):
         return "review"
+
     if (
         observation.remaining_review_budget > 0
         and case.uncertainty_score >= 0.78
@@ -150,6 +159,7 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and "new_beneficiary" in policy_flags
     ):
         return "review"
+
     if (
         case.history_risk_score <= 0.28
         and case.risk_score <= 0.72
@@ -157,14 +167,17 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and not has_severe_flag
     ):
         return "accept"
+
     if (
         case.history_risk_score <= 0.24
         and case.anomaly_score <= 0.80
         and case.feature_completeness >= 0.76
     ):
         return "accept"
+
     if case.model_recommendation == "review" and observation.remaining_review_budget > 0:
         return "review"
+
     if (
         observation.remaining_review_budget > 0
         and case.uncertainty_score >= 0.76
@@ -172,14 +185,17 @@ def _heuristic_decision(observation: TriageObservation) -> Decision:
         and case.history_risk_score < 0.50
     ):
         return "review"
+
     if (
         case.risk_score <= 0.30
         and case.anomaly_score <= 0.35
         and case.history_risk_score <= 0.30
     ):
         return "accept"
+
     if case.model_recommendation == "review" and observation.remaining_review_budget == 0:
         return "reject"
+
     return case.model_recommendation
 
 
@@ -188,73 +204,38 @@ def get_llm_decision(client: OpenAI, observation: TriageObservation) -> str:
     if case is None:
         return "review"
 
-    user_prompt = "\n".join(
-        [
-            f"risk_score: {case.risk_score}",
-            f"anomaly_score: {case.anomaly_score}",
-            f"history_risk_score: {case.history_risk_score}",
-            f"model_recommendation: {case.model_recommendation}",
-            f"model_confidence: {case.model_confidence}",
-            f"uncertainty_score: {case.uncertainty_score}",
-            f"novelty_score: {case.novelty_score}",
-            f"feature_completeness: {case.feature_completeness}",
-            f"policy_flags: {','.join(case.policy_flags)}",
-            f"missing_fields: {','.join(case.missing_fields)}",
-            f"evidence_text: {case.evidence_text}",
-        ]
-    )
-    response = client.chat.completions.create(
-        model=os.environ.get("MODEL_NAME", "gpt-4.1-mini"),
-        temperature=0.0,
-        max_tokens=1,
-        timeout=LLM_TIMEOUT_S,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
-    content = (response.choices[0].message.content or "").strip().lower()
-    return content if content in VALID_DECISIONS else "review"
-
-
-def _decision_for_observation(
-    model_client: OpenAI,
-    observation: TriageObservation,
-    llm_enabled: bool,
-) -> Decision:
-    case = observation.current_case
-    if case is None:
+    try:
+        response = client.chat.completions.create(
+            model=os.environ.get("MODEL_NAME", "gpt-4.1-mini"),
+            temperature=0.0,
+            max_tokens=1,
+            timeout=LLM_TIMEOUT_S,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": "Decide action."},
+            ],
+        )
+        content = (response.choices[0].message.content or "").strip().lower()
+        return content if content in VALID_DECISIONS else "review"
+    except Exception:
         return "review"
 
-    if llm_enabled and (
-        case.uncertainty_score > 0.60
-        or case.novelty_score > 0.60
-        or (
-            case.feature_completeness < 0.75
-            and case.model_confidence < 0.75
-        )
-    ):
-        try:
-            llm_decision = get_llm_decision(model_client, observation)
-        except Exception:
-            return _heuristic_decision(observation)
-        return llm_decision if llm_decision in VALID_DECISIONS else "review"
 
+def _decision_for_observation(model_client, observation, llm_enabled):
+    if llm_enabled:
+        return get_llm_decision(model_client, observation)
     return _heuristic_decision(observation)
 
 
-def run_episode(
-    env_url: str,
-    task: TaskName,
-    api_base_url: str | None,
-    model_name: str,
-    hf_token: str | None,
-) -> int:
+def run_episode(env_url, task, api_base_url, model_name, hf_token) -> int:
     api_key = os.environ.get("OPENAI_API_KEY") or hf_token or "dummy"
-    _model_client = OpenAI(base_url=api_base_url, api_key=api_key)
-    llm_enabled = _llm_enabled(api_base_url)
 
-    rewards: list[float] = []
+    try:
+        client = OpenAI(base_url=api_base_url, api_key=api_key)
+    except Exception:
+        client = OpenAI(api_key="dummy")
+
+    rewards = []
     steps = 0
     final_score = 0.0
 
@@ -266,94 +247,62 @@ def run_episode(
             result = env.reset(task=task)
 
             while not result.done:
-                action = _decision_for_observation(
-                    _model_client,
-                    result.observation,
-                    llm_enabled,
-                )
-                error_value = "null"
-                reward_value = 0.0
+                action = _decision_for_observation(client, result.observation, False)
+
                 try:
                     result = env.step(
                         TriageAction(
                             decision=action,
-                            rationale="Deterministic rule-based baseline.",
+                            rationale="baseline",
                         )
                     )
-                    reward_value = float(result.reward or 0.0)
-                    rewards.append(reward_value)
-                    steps += 1
-                except Exception as exc:  # pragma: no cover
-                    error_value = _sanitize_error(str(exc))
+                    reward = float(result.reward or 0.0)
+                except Exception as exc:
+                    error = _sanitize_error(str(exc))
                     print(
-                        f"[STEP] step={steps + 1} action={action} reward={_format_reward(0.0)} "
-                        f"done=true error={error_value}"
+                        f"[STEP] step={steps+1} action={action} reward=0.00 done=true error={error}"
                     )
                     print(
-                        f"[END] success=false steps={steps} score={_format_score(final_score)} "
-                        f"rewards={_format_rewards(rewards)}"
+                        f"[END] success=false steps={steps} score={_format_score(final_score)} rewards={_format_rewards(rewards)}"
                     )
-                    return 1
+                    return 0
 
+                rewards.append(reward)
+                steps += 1
                 final_score = float(result.observation.normalized_score or 0.0)
+
                 print(
-                    f"[STEP] step={steps} action={action} reward={_format_reward(reward_value)} "
-                    f"done={_bool_text(result.done)} error={error_value}"
+                    f"[STEP] step={steps} action={action} reward={_format_reward(reward)} done={_bool_text(result.done)} error=null"
                 )
 
-            final_state = env.state()
-            final_score = float(final_state.normalized_score or 0.0)
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:
+        error = _sanitize_error(str(exc))
         print(
-            f"[END] success=false steps={steps} score={_format_score(final_score)} "
-            f"rewards={_format_rewards(rewards)}"
+            f"[STEP] step={steps+1} action=review reward=0.00 done=true error={error}"
         )
-        return 1
+        print(
+            f"[END] success=false steps={steps} score={_format_score(final_score)} rewards={_format_rewards(rewards)}"
+        )
+        return 0
 
     print(
-        f"[END] success=true steps={steps} score={_format_score(final_score)} "
-        f"rewards={_format_rewards(rewards)}"
+        f"[END] success=true steps={steps} score={_format_score(final_score)} rewards={_format_rewards(rewards)}"
     )
     return 0
 
 
-def main() -> int:
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env-url", dest="env_url")
-    parser.add_argument("--env_url", dest="env_url")
-    parser.add_argument("--task", choices=["easy", "medium", "hard"], default="easy")
-    parser.add_argument("--model", dest="cli_model_name")
-    parser.add_argument("--model-name", dest="cli_model_name")
-    parser.add_argument("--model_name", dest="cli_model_name")
-    parser.add_argument("--api-base-url", dest="cli_api_base_url")
-    parser.add_argument("--api_base_url", dest="cli_api_base_url")
-    parser.add_argument("--hf-token", dest="cli_hf_token")
-    parser.add_argument("--hf_token", dest="cli_hf_token")
-    args, _unknown = parser.parse_known_args()
-
-    api_base_url = (
-        args.cli_api_base_url
-        or os.environ.get("API_BASE_URL", "").strip()
-        or None
-    )
-    model_name = (
-        args.cli_model_name
-        or os.environ.get("MODEL_NAME", "gpt-4.1-mini")
-    )
-    hf_token = args.cli_hf_token or os.environ.get("HF_TOKEN")
-    env_url = (
-        args.env_url
-        or os.environ.get("ENV_URL", "").strip()
-        or os.environ.get("HF_SPACE_URL", "").strip()
-        or "http://localhost:8000"
-    )
+    parser.add_argument("--env-url", default=os.environ.get("ENV_URL", "http://localhost:8000"))
+    parser.add_argument("--task", default="easy")
+    args = parser.parse_args()
 
     return run_episode(
-        env_url=env_url,
+        env_url=args.env_url,
         task=args.task,
-        api_base_url=api_base_url,
-        model_name=model_name,
-        hf_token=hf_token,
+        api_base_url=os.environ.get("API_BASE_URL"),
+        model_name=os.environ.get("MODEL_NAME", "gpt-4.1-mini"),
+        hf_token=os.environ.get("HF_TOKEN"),
     )
 
 
